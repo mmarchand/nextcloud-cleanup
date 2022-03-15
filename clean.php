@@ -47,15 +47,15 @@ $db = DB::getInstance(getenv('DATABASE_HOST'), getenv('DATABASE_USER'), getenv('
 
 // Query to fetch files to delete
 $query_leftover_uploads = <<<EOT
-  SELECT `oc_filecache`.`fileid`, `oc_filecache`.`path`, `oc_filecache`.`parent`, `oc_storages`.`id` AS `storage`, `oc_filecache`.`size`
-  FROM `oc_filecache`
-  LEFT JOIN `oc_storages` ON `oc_storages`.`numeric_id` = `oc_filecache`.`storage`
-  WHERE `oc_filecache`.`parent` IN (
+  SELECT `filecache`.`fileid`, `filecache`.`path`, `filecache`.`parent`, `storages`.`id` AS `storage`, `filecache`.`size`
+  FROM `filecache`
+  LEFT JOIN `storages` ON `storages`.`numeric_id` = `filecache`.`storage`
+  WHERE `filecache`.`parent` IN (
     SELECT `fileid`
-    FROM `oc_filecache`
-    WHERE `parent`=(SELECT fileid FROM `oc_filecache` WHERE `path`="uploads")
+    FROM `filecache`
+    WHERE `parent`=(SELECT fileid FROM `filecache` WHERE `path`="uploads")
     AND `storage_mtime` < UNIX_TIMESTAMP(NOW() - INTERVAL $config_deletion_grace_period SECOND)
-  ) AND `oc_storages`.`available` = 1;
+  ) AND `storages`.`available` = 1;
 EOT;
 
 // Fetch records
@@ -83,14 +83,14 @@ foreach ($leftover_uploads as $file) {
   ]);
 
   // Delete from the DB
-  $db->delete('oc_filecache', ['fileid' => $file->fileid]);
+  $db->delete('filecache', ['fileid' => $file->fileid]);
 }
 
 // Delete all parent objects from the db
 $parent_objects = array_unique($parent_objects);
 
 foreach ($parent_objects as $parent_object) {
-  $db->delete('oc_filecache', ['fileid' => $parent_object]);
+  $db->delete('filecache', ['fileid' => $parent_object]);
 }
 
 echo "Recovered " . readableBytes($total_size) . " from S3 storage.\n";
